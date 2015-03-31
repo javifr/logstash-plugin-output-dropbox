@@ -1,7 +1,7 @@
 # encoding: utf-8
 require "logstash/outputs/base"
 require "logstash/namespace"
-require "logstash/plugin_mixins/aws_config"
+# require "logstash/plugin_mixins/aws_config"
 require "stud/temporary"
 require "socket" # for Socket.gethostname
 require "thread"
@@ -64,27 +64,19 @@ require_relative "./dropbox-patch"
 #      canned_acl => "private"                  (optional. Options are "private", "public_read", "public_read_write", "authenticated_read". Defaults to "private" )
 #    }
 #
-class LogStash::Outputs::S3 < LogStash::Outputs::Base
-  include LogStash::PluginMixins::AwsConfig
+class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
+
 
   TEMPFILE_EXTENSION = "txt"
-  S3_INVALID_CHARACTERS = /[\^`><]/
+  # S3_INVALID_CHARACTERS = /[\^`><]/
 
-  config_name "s3"
+  config_name "dropbox"
   default :codec, 'line'
-
-  # S3 bucket
-  config :bucket, :validate => :string
-
-  # AWS endpoint_region
-  config :endpoint_region, :validate => ["us-east-1", "us-west-1", "us-west-2",
-                                         "eu-west-1", "ap-southeast-1", "ap-southeast-2",
-                                        "ap-northeast-1", "sa-east-1", "us-gov-west-1"], :deprecated => 'Deprecated, use region instead.'
 
   # Set the size of file in bytes, this means that files on bucket when have dimension > file_size, they are stored in two or more file.
   # If you have tags then it will generate a specific size file for every tags
   ##NOTE: define size of file is the better thing, because generate a local temporary file on disk and then put it in bucket.
-  config :size_file, :validate => :number, :default => 0
+  config :size_file, :validate => :number, :required => true
 
   # Set the time, in minutes, to close the current sub_time_section of bucket.
   # If you define file_size you have a number of files in consideration of the section and the current tag.
@@ -98,9 +90,6 @@ class LogStash::Outputs::S3 < LogStash::Outputs::Base
   ## for example if you have single Instance.
   config :restore, :validate => :boolean, :default => false
 
-  # The S3 canned ACL to use when putting the file. Defaults to "private".
-  config :canned_acl, :validate => ["private", "public_read", "public_read_write", "authenticated_read"],
-         :default => "private"
 
   # Set the directory where logstash will store the tmp files before sending it to S3
   # default to the current OS temporary directory in linux /tmp/logstash
@@ -124,7 +113,7 @@ class LogStash::Outputs::S3 < LogStash::Outputs::Base
   # Exposed attributes for testing purpose.
   attr_accessor :tempfile
   attr_reader :page_counter
-  attr_reader :s3
+  attr_reader :dropbox
 
   ############################
   ##
@@ -175,25 +164,25 @@ class LogStash::Outputs::S3 < LogStash::Outputs::Base
   ##
   ############################
 
-  def aws_s3_config
-    @logger.info("Registering s3 output", :bucket => @bucket, :endpoint_region => @region)
-    @s3 = AWS::S3.new(aws_options_hash)
-  end
+  # def aws_s3_config
+  #   @logger.info("Registering s3 output", :bucket => @bucket, :endpoint_region => @region)
+  #   @s3 = AWS::S3.new(aws_options_hash)
+  # end
 
-  def aws_service_endpoint(region)
-    # Make the deprecated endpoint_region work
-    # TODO: (ph) Remove this after deprecation.
+  # def aws_service_endpoint(region)
+  #   # Make the deprecated endpoint_region work
+  #   # TODO: (ph) Remove this after deprecation.
 
-    if @endpoint_region
-      region_to_use = @endpoint_region
-    else
-      region_to_use = @region
-    end
+  #   if @endpoint_region
+  #     region_to_use = @endpoint_region
+  #   else
+  #     region_to_use = @region
+  #   end
 
-    return {
-      :s3_endpoint => region_to_use == 'us-east-1' ? 's3.amazonaws.com' : "s3-#{region_to_use}.amazonaws.com"
-    }
-  end
+  #   return {
+  #     :s3_endpoint => region_to_use == 'us-east-1' ? 's3.amazonaws.com' : "s3-#{region_to_use}.amazonaws.com"
+  #   }
+  # end
 
   # public
   # def write_on_bucket(file)
@@ -254,8 +243,6 @@ class LogStash::Outputs::S3 < LogStash::Outputs::Base
       FileUtils.mkdir_p(@temporary_directory)
     end
 
-    # test_s3_write
-
     # restore_from_crashes if @restore == true
     reset_page_counter
     create_temporary_file
@@ -267,27 +254,6 @@ class LogStash::Outputs::S3 < LogStash::Outputs::Base
     end
   end
 
-
-  # Use the same method that Amazon use to check
-  # permission on the user bucket by creating a small file
-  # public
-  # def test_s3_write
-  #   @logger.debug("Dropbox: Creating a test file on S3")
-
-  #   test_filename = File.join(@temporary_directory,
-  #                             "logstash-programmatic-access-test-object-#{Time.now.to_i}")
-
-  #   File.open(test_filename, 'a') do |file|
-  #     file.write('test')
-  #   end
-
-  #   begin
-  #     write_on_bucket(test_filename)
-  #     delete_on_bucket(test_filename)
-  #   ensure
-  #     File.delete(test_filename)
-  #   end
-  # end
 
   # public
   # def restore_from_crashes

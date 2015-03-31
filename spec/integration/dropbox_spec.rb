@@ -1,18 +1,29 @@
 require "logstash/devutils/rspec/spec_helper"
-require "logstash/outputs/s3"
+require "logstash/outputs/dropbox"
 require 'socket'
-require "aws-sdk"
+# require "aws-sdk"
 require "fileutils"
 require "stud/temporary"
 require_relative "../supports/helpers"
 
 require "dropbox_sdk"
-require_relative "./dropbox-patch"
+
 
 describe LogStash::Outputs::Dropbox, :integration => true, :dropbox => true do
   before do
     Thread.abort_on_exception = true
   end
+
+  let!(:minimal_settings)  {
+    {
+      "temporary_directory" => Stud::Temporary.pathname('temporary_directory'),
+      "type" => "customers",
+      "tags" => ["customers", "punt fresc", "raw"],
+      "prefix" => "/loyal_guru_files/raw/customers/",
+      "credentials" => [ "90xpj25b6k0qv3e","rrfb8l6f824olm7"],
+      "token" => "36urfzNJ8pAAAAAAAAAABRnDjV981R7vPk7ZYf0cbMZDvxTJiZ5PM2Ex7P-PwPTx"
+    }
+  }
 
   # let!(:minimal_settings)  {  { "access_key_id" => ENV['AWS_ACCESS_KEY_ID'],
   #                               "secret_access_key" => ENV['AWS_SECRET_ACCESS_KEY'],
@@ -20,53 +31,53 @@ describe LogStash::Outputs::Dropbox, :integration => true, :dropbox => true do
   #                               "region" => ENV["AWS_REGION"] || "us-east-1",
   #                               "temporary_directory" => Stud::Temporary.pathname('temporary_directory') }}
 
-  # let!(:s3_object) do
-  #     s3output = LogStash::Outputs::Dropbox.new(minimal_settings)
-  #     s3output.register
-  #     s3output.s3
-  # end
+  let!(:dropbox_object) do
+      dropboxoutput = LogStash::Outputs::Dropbox.new(minimal_settings)
+      dropboxoutput.register
+      dropboxoutput.dropbox
+  end
 
   # after(:all) do
   #   delete_matching_keys_on_bucket('studtmp')
   #   delete_matching_keys_on_bucket('my-prefix')
   # end
 
-  # describe "#register" do
-  #   it "write a file on the bucket to check permissions" do
-  #     s3 = LogStash::Outputs::Dropbox.new(minimal_settings)
-  #     expect(s3.register).not_to raise_error
-  #   end
-  # end
+  describe "#register" do
+    it "write a file on the folder to check permissions" do
+      dropbox = LogStash::Outputs::Dropbox.new(minimal_settings)
+      expect(dropbox.register).not_to raise_error
+    end
+  end
 
-  # describe "#write_on_bucket" do
-  #   after(:all) do
-  #     File.unlink(fake_data.path)
-  #   end
+  describe "#write_on_bucket" do
+    after(:all) do
+      File.unlink(fake_data.path)
+    end
 
-  #   let!(:fake_data) { Stud::Temporary.file }
+    let!(:fake_data) { Stud::Temporary.file }
 
-  #   it "should prefix the file on the bucket if a prefix is specified" do
-  #     prefix = "my-prefix"
+    it "should prefix the file on the bucket if a prefix is specified" do
+      prefix = "my-prefix"
 
-  #     config = minimal_settings.merge({
-  #       "prefix" => prefix,
-  #     })
+      config = minimal_settings.merge({
+        "prefix" => prefix,
+      })
 
-  #     s3 = LogStash::Outputs::Dropbox.new(config)
-  #     s3.register
-  #     s3.write_on_bucket(fake_data)
+      dropbox = LogStash::Outputs::Dropbox.new(config)
+      dropbox.register
+      dropbox.write_on_bucket(fake_data)
 
-  #     expect(key_exists_on_bucket?("#{prefix}#{File.basename(fake_data.path)}")).to eq(true)
-  #   end
+      expect(key_exists_on_bucket?("#{prefix}#{File.basename(fake_data.path)}")).to eq(true)
+    end
 
-  #   it 'should use the same local filename if no prefix is specified' do
-  #     s3 = LogStash::Outputs::Dropbox.new(minimal_settings)
-  #     s3.register
-  #     s3.write_on_bucket(fake_data)
+    it 'should use the same local filename if no prefix is specified' do
+      dropbox = LogStash::Outputs::Dropbox.new(minimal_settings)
+      dropbox.register
+      dropbox.write_on_bucket(fake_data)
 
-  #     expect(key_exists_on_bucket?(File.basename(fake_data.path))).to eq(true)
-  #   end
-  # end
+      expect(key_exists_on_bucket?(File.basename(fake_data.path))).to eq(true)
+    end
+  end
 
   # describe "#move_file_to_bucket" do
   #   let!(:s3) { LogStash::Outputs::Dropbox.new(minimal_settings) }

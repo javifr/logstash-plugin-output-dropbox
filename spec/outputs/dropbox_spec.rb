@@ -1,27 +1,38 @@
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
-require "logstash/outputs/s3"
+require "logstash/outputs/dropbox"
 require "logstash/codecs/line"
 require "logstash/pipeline"
-require "aws-sdk"
+# require "aws-sdk"
 require "fileutils"
 require_relative "../supports/helpers"
 
 require "dropbox_sdk"
-require_relative "./dropbox-patch"
+
 
 describe LogStash::Outputs::Dropbox do
   before do
     # We stub all the calls from Dropbox, for more information see:
     # http://ruby.awsblog.com/post/Tx2SU6TYJWQQLC3/Stubbing-AWS-Responses
-    AWS.stub!
+    # AWS.stub!
 
     Thread.abort_on_exception = true
   end
 
-  let(:minimal_settings)  {  { "access_key_id" => "1234",
-                               "secret_access_key" => "secret",
-                               "bucket" => "my-bucket" } }
+  # let(:minimal_settings)  {  { "access_key_id" => "1234",
+  #                              "secret_access_key" => "secret",
+  #                              "bucket" => "my-bucket" } }
+
+  let!(:minimal_settings)  {
+    {
+      "temporary_directory" => Stud::Temporary.pathname('temporary_directory'),
+      "type" => "customers",
+      "tags" => ["customers", "punt fresc", "raw"],
+      "prefix" => "/loyal_guru_files/raw/customers/",
+      "credentials" => [ "90xpj25b6k0qv3e","rrfb8l6f824olm7"],
+      "token" => "36urfzNJ8pAAAAAAAAAABRnDjV981R7vPk7ZYf0cbMZDvxTJiZ5PM2Ex7P-PwPTx"
+    }
+  }
 
   # describe "configuration" do
   #   let!(:config) { { "endpoint_region" => "sa-east-1" } }
