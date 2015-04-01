@@ -1,5 +1,6 @@
 # encoding: utf-8
 require "logstash/outputs/base"
+require "logstash/outputs/csv"
 require "logstash/namespace"
 # require "logstash/plugin_mixins/aws_config"
 require "stud/temporary"
@@ -302,8 +303,17 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
   public
   def receive(event)
     return unless output?(event)
+    csv_values = @fields.map {|name| get_value_to_csv(name, event)}
+    event["message"] = csv_values.to_csv(@csv_options))
     @codec.encode(event)
   end
+
+  private
+  def get_value_to_csv(name, event)
+    val = event[name]
+    val.is_a?(Hash) ? LogStash::Json.dump(val) : val
+  end
+
 
   public
   def rotate_events_log?
