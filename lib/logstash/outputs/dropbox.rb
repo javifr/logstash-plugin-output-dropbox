@@ -2,7 +2,6 @@
 require "logstash/outputs/base"
 require "logstash/outputs/csv"
 require "logstash/namespace"
-# require "logstash/plugin_mixins/aws_config"
 require "stud/temporary"
 require "socket" # for Socket.gethostname
 require "thread"
@@ -17,8 +16,8 @@ require_relative "./dropbox-patch"
 # This plugin was created for store the logstash's events into a Dropbox folder.
 # For use it you needs dropbox token folder.
 #
-# This plugin is completely based in logstash-output-s3, so if you don't understand something you can also check it out.
-# Also is inheriting from logstash-output-csv
+# This plugin is completely based in logstash-output-s3, so if you don't understand something you can also check it out here: https://github.com/logstash-plugins/logstash-output-s3
+# Also is inheriting from logstash-output-csv in order to be able to output in csv format, check it out here: https://github.com/logstash-plugins/logstash-output-csv
 #
 #
 # #### Usage:
@@ -37,7 +36,7 @@ require_relative "./dropbox-patch"
 #   path => "/loyal_guru_files/customers/"
 #   token => "xxxxx"
 # }
-#
+#}
 
 class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
@@ -57,23 +56,23 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   # for now the only thing this plugin can do is to put the file when logstash restart.
   config :time_file, :validate => :number, :required => true
 
-  ## IMPORTANT: if you use multiple instance of s3, you should specify on one of them the "restore=> true" and on the others "restore => false".
+  ## IMPORTANT: if you use multiple instance of logstash running, you should specify on one of them the "restore=> true" and on the others "restore => false".
   ## This is hack for not destroy the new files after restoring the initial files.
-  ## If you do not specify "restore => true" when logstash crashes or is restarted, the files are not sent into the bucket,
+  ## If you do not specify "restore => true" when logstash crashes or is restarted, the files are not sent into the folder,
   ## for example if you have single Instance.
   config :restore, :validate => :boolean, :default => false
 
-  # Set the directory where logstash will store the tmp files before sending it to S3
+  # Set the directory where logstash will store the tmp files before sending it to Dropbox
   # default to the current OS temporary directory in linux /tmp/logstash
   config :temporary_directory, :validate => :string, :default => File.join(Dir.tmpdir, "logstash")
 
   # Specify if outputing to csv ( make sure to specify the required fields in logstash-output-csv if you activate this option )
   config :csv_format, :validate => :boolean, :default => false
 
-  # Specify how many workers to use to upload the files to S3
+  # Specify how many workers to use to upload the files to Dropbox
   config :upload_workers_count, :validate => :number, :default => 1
 
-  # The token of the folder you need to access
+  # The token of the Dropbox folder you need to access
   config :token, :validate => :string, :required => true
 
 
@@ -82,17 +81,12 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   attr_reader :page_counter
   attr_reader :dropbox
 
-  ############################
-  ##
-  ## ==START== DROPBOX SPECIFICS
-  ##
-  ############################
-
   def dropbox_config
 
     @logger.info("Registering dropbox output")
 
     if @token
+
       @dropbox = DropboxClient.new(@token)
     else
       @logger.error("Token missing, cannot create Dropbox Client to connect Dropbox.")
@@ -105,10 +99,11 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     remote_filename = "#{@path}#{File.basename(file)}"
 
-    @logger.debug("Dropbox: ready to write file in bucket", :remote_filename => remote_filename, :bucket => @bucket)
+    @logger.debug("Dropbox: ready to write file in folder", :remote_filename => remote_filename, :path => @path)
 
     File.open(file, 'r') do |fileIO|
       begin
+
         response = @dropbox.put_file(remote_filename, fileIO)
       rescue Dropbox::Errors::Base => error
         @logger.error("Dropbox: Error", :error => error)
@@ -118,56 +113,6 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     @logger.debug("Dropbox: has written remote file", :remote_filename => remote_filename)
   end
-
-
-  ############################
-  ##
-  ## ==END== DROPBOX SPECIFICS
-  ##
-  ############################
-
-  # def aws_s3_config
-  #   @logger.info("Registering s3 output", :bucket => @bucket, :endpoint_region => @region)
-  #   @s3 = AWS::S3.new(aws_options_hash)
-  # end
-
-  # def aws_service_endpoint(region)
-  #   # Make the deprecated endpoint_region work
-  #   # TODO: (ph) Remove this after deprecation.
-
-  #   if @endpoint_region
-  #     region_to_use = @endpoint_region
-  #   else
-  #     region_to_use = @region
-  #   end
-
-  #   return {
-  #     :s3_endpoint => region_to_use == 'us-east-1' ? 's3.amazonaws.com' : "s3-#{region_to_use}.amazonaws.com"
-  #   }
-  # end
-
-  # public
-  # def write_on_bucket(file)
-  #   # find and use the bucket
-  #   bucket = @s3.buckets[@bucket]
-
-  #   remote_filename = "#{@path}#{File.basename(file)}"
-
-  #   @logger.debug("Dropbox: ready to write file in bucket", :remote_filename => remote_filename, :bucket => @bucket)
-
-  #   File.open(file, 'r') do |fileIO|
-  #     begin
-  #       # prepare for write the file
-  #       object = bucket.objects[remote_filename]
-  #       object.write(fileIO, :acl => @canned_acl)
-  #     rescue AWS::Errors::Base => error
-  #       @logger.error("Dropbox: AWS error", :error => error)
-  #       raise LogStash::Error, "AWS Configuration Error, #{error}"
-  #     end
-  #   end
-
-  #   @logger.debug("Dropbox: has written remote file in bucket with canned ACL", :remote_filename => remote_filename, :bucket  => @bucket, :canned_acl => @canned_acl)
-  # end
 
 
 
@@ -195,10 +140,10 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     workers_not_supported
 
-    @dropbox = dropbox_config
+    # @dropbox = dropbox_config
+    dropbox_config
     @upload_queue = Queue.new
     @file_rotation_lock = Mutex.new
-
 
     if !Dir.exist?(@temporary_directory)
       FileUtils.mkdir_p(@temporary_directory)
@@ -394,24 +339,20 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
     @page_counter = 0
   end
 
-  private
-  def delete_on_bucket(filename)
-    # bucket = @s3.buckets[@bucket]
+  # private
+  # def delete_on_bucket(filename)
 
-    remote_filename = "#{@path}#{File.basename(filename)}"
+  #   remote_filename = "#{@path}#{File.basename(filename)}"
 
-    @logger.debug("Dropbox: delete file from folder", :remote_filename => remote_filename)
+  #   @logger.debug("Dropbox: delete file from folder", :remote_filename => remote_filename)
 
-    begin
-      # prepare for write the file
-      # object = bucket.objects[remote_filename]
-      # object.delete
-      @dropbox.file_delete(remote_filename)
-    rescue Dropbox::Errors::Base => e
-      @logger.error("Dropbox: error", :error => e)
-      raise LogStash::ConfigurationError, "Configuration Error"
-    end
-  end
+  #   begin
+  #     @dropbox.file_delete(remote_filename)
+  #   rescue Dropbox::Errors::Base => e
+  #     @logger.error("Dropbox: error", :error => e)
+  #     raise LogStash::ConfigurationError, "Configuration Error"
+  #   end
+  # end
 
   private
   def move_file_to_bucket_async(file)

@@ -1,3 +1,5 @@
+# Dropbox client cannot connect over ssl ( in jRuby ) if this patch is not present.
+
 require 'open-uri'
 require 'net/https'
 

@@ -19,8 +19,7 @@ describe LogStash::Outputs::Dropbox, :integration => true, :dropbox => true do
       "temporary_directory" => Stud::Temporary.pathname('temporary_directory'),
       "type" => "customers",
       "tags" => ["customers", "punt fresc", "raw"],
-      "prefix" => "/loyal_guru_files/raw/customers/",
-      "credentials" => [ "XXXXXXX","XXXXXXX"],
+      "path" => "/loyal_guru_files/raw/customers/",
       "token" => "XXXXXXXXX"
     }
   }
