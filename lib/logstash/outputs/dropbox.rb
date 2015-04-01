@@ -65,7 +65,7 @@ require_relative "./dropbox-patch"
 # }
 #
 
-class LogStash::Outputs::Dropbox < LogStash::Outputs::File
+class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 # class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
 
 
@@ -74,6 +74,8 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::File
 
   config_name "dropbox"
   default :codec, 'line'
+
+  config :path, :validate => :string, :required => false
 
   # Set the size of file in bytes, this means that files on bucket when have dimension > file_size, they are stored in two or more file.
   # If you have tags then it will generate a specific size file for every tags
@@ -233,6 +235,8 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::File
     # required if using ruby version < 2.0
     # http://ruby.awsblog.com/post/Tx16QY1CI5GVBFT/Threading-with-the-AWS-SDK-for-Ruby
     # AWS.eager_autoload!(AWS::S3)
+
+    @csv_options = Hash[@csv_options.map{|(k, v)|[k.to_sym, v]}]
 
     workers_not_supported
 
