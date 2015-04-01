@@ -53,16 +53,15 @@ require_relative "./dropbox-patch"
 # This is an example of logstash config:
 # [source,ruby]
 # output {
-#    s3{
-#      access_key_id => "crazy_key"             (required)
-#      secret_access_key => "monkey_access_key" (required)
-#      endpoint_region => "eu-west-1"           (required)
-#      bucket => "boss_please_open_your_bucket" (required)
-#      size_file => 2048                        (optional)
-#      time_file => 5                           (optional)
-#      format => "plain"                        (optional)
-#      canned_acl => "private"                  (optional. Options are "private", "public_read", "public_read_write", "authenticated_read". Defaults to "private" )
-#    }
+# dropbox {
+#   temporary_directory => "/Users/javi/Desktop/logstash/tmp/"
+#   type => "customers"
+#   size_file => 3048576
+#   tags => ["customers", "punt fresc", "raw"]
+#   prefix => "/loyal_guru_files/customers/"
+#   credentials => [ "90xpj25b6k0qv3e","rrfb8l6f824olm7"]
+#   token => "36urfzNJ8pAAAAAAAAAABRnDjV981R7vPk7ZYf0cbMZDvxTJiZ5PM2Ex7P-PwPTx"
+# }
 #
 class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
 

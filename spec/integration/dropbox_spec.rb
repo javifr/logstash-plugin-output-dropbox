@@ -20,8 +20,8 @@ describe LogStash::Outputs::Dropbox, :integration => true, :dropbox => true do
       "type" => "customers",
       "tags" => ["customers", "punt fresc", "raw"],
       "prefix" => "/loyal_guru_files/raw/customers/",
-      "credentials" => [ "90xpj25b6k0qv3e","rrfb8l6f824olm7"],
-      "token" => "36urfzNJ8pAAAAAAAAAABRnDjV981R7vPk7ZYf0cbMZDvxTJiZ5PM2Ex7P-PwPTx"
+      "credentials" => [ "XXXXXXX","XXXXXXX"],
+      "token" => "XXXXXXXXX"
     }
   }
 
