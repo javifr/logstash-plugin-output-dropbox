@@ -304,7 +304,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
   def receive(event)
     return unless output?(event)
     csv_values = @fields.map {|name| get_value_to_csv(name, event)}
-    event["message"] = csv_values.to_csv(@csv_options))
+    event["message"] = csv_values.to_csv(@csv_options)
     @codec.encode(event["message"])
   end
 
