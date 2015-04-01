@@ -64,7 +64,9 @@ require_relative "./dropbox-patch"
 #   token => "36urfzNJ8pAAAAAAAAAABRnDjV981R7vPk7ZYf0cbMZDvxTJiZ5PM2Ex7P-PwPTx"
 # }
 #
-class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
+
+class LogStash::Outputs::Dropbox < LogStash::Outputs::File
+# class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
 
 
   TEMPFILE_EXTENSION = "txt"
