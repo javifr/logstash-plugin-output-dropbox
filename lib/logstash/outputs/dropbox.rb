@@ -45,6 +45,8 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   config_name "dropbox"
   default :codec, 'line'
 
+  config :fields, :validate => :array, :required => false
+
   # Set the size of file in bytes, this means that files on bucket when have dimension > file_size, they are stored in two or more file.
   # If you have tags then it will generate a specific size file for every tags
   ##NOTE: define size of file is the better thing, because generate a local temporary file on disk and then put it in bucket.
