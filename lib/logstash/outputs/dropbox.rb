@@ -14,40 +14,11 @@ require_relative "./dropbox-patch"
 
 # INFORMATION:
 #
-# This plugin was created for store the logstash's events into Amazon Simple Storage Service (Amazon S3).
-# For use it you needs authentications and an s3 bucket.
-# Be careful to have the permission to write file on S3's bucket and run logstash with super user for establish connection.
+# This plugin was created for store the logstash's events into a Dropbox folder.
+# For use it you needs dropbox token folder.
 #
-# S3 plugin allows you to do something complex, let's explain:)
-#
-# S3 outputs create temporary files into "/opt/logstash/S3_temp/". If you want, you can change the path at the start of register method.
-# This files have a special name, for example:
-#
-# ls.s3.ip-10-228-27-95.2013-04-18T10.00.tag_hello.part0.txt
-#
-# ls.s3 : indicate logstash plugin s3
-#
-# "ip-10-228-27-95" : indicate you ip machine, if you have more logstash and writing on the same bucket for example.
-# "2013-04-18T10.00" : represents the time whenever you specify time_file.
-# "tag_hello" : this indicate the event's tag, you can collect events with the same tag.
-# "part0" : this means if you indicate size_file then it will generate more parts if you file.size > size_file.
-#           When a file is full it will pushed on bucket and will be deleted in temporary directory.
-#           If a file is empty is not pushed, but deleted.
-#
-# This plugin have a system to restore the previous temporary files if something crash.
-#
-##[Note] :
-#
-## If you specify size_file and time_file then it will create file for each tag (if specified), when time_file or
-## their size > size_file, it will be triggered then they will be pushed on s3's bucket and will delete from local disk.
-## If you don't specify size_file, but time_file then it will create only one file for each tag (if specified).
-## When time_file it will be triggered then the files will be pushed on s3's bucket and delete from local disk.
-#
-## If you don't specify time_file, but size_file  then it will create files for each tag (if specified),
-## that will be triggered when their size > size_file, then they will be pushed on s3's bucket and will delete from local disk.
-#
-## If you don't specific size_file and time_file you have a curios mode. It will create only one file for each tag (if specified).
-## Then the file will be rest on temporary directory and don't will be pushed on bucket until we will restart logstash.
+# This plugin is completely based in logstash-output-s3, so if you don't understand something you can also check it out.
+# Also is inheriting from logstash-output-csv
 #
 #
 # #### Usage:
@@ -57,25 +28,23 @@ require_relative "./dropbox-patch"
 # dropbox {
 #   temporary_directory => "/Users/javi/Desktop/logstash/tmp/"
 #   type => "customers"
-#   size_file => 3048576
+#   size_file => 1048576
+#   time_file => 2
 #   tags => ["customers", "punt fresc", "raw"]
-#   prefix => "/loyal_guru_files/customers/"
-#   credentials => [ "90xpj25b6k0qv3e","rrfb8l6f824olm7"]
-#   token => "36urfzNJ8pAAAAAAAAAABRnDjV981R7vPk7ZYf0cbMZDvxTJiZ5PM2Ex7P-PwPTx"
+#   csv_format => true
+#   csv_options => {"headers" => true}
+#   fields => ["name","surname_1", "surname_2"]
+#   path => "/loyal_guru_files/customers/"
+#   token => "xxxxx"
 # }
 #
 
 class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
-# class LogStash::Outputs::Dropbox < LogStash::Outputs::Base
-
 
   TEMPFILE_EXTENSION = "txt"
-  # S3_INVALID_CHARACTERS = /[\^`><]/
 
   config_name "dropbox"
   default :codec, 'line'
-
-  config :path, :validate => :string, :required => false
 
   # Set the size of file in bytes, this means that files on bucket when have dimension > file_size, they are stored in two or more file.
   # If you have tags then it will generate a specific size file for every tags
@@ -86,7 +55,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   # If you define file_size you have a number of files in consideration of the section and the current tag.
   # 0 stay all time on listerner, beware if you specific 0 and size_file 0, because you will not put the file on bucket,
   # for now the only thing this plugin can do is to put the file when logstash restart.
-  config :time_file, :validate => :number, :default => 0
+  config :time_file, :validate => :number, :required => true
 
   ## IMPORTANT: if you use multiple instance of s3, you should specify on one of them the "restore=> true" and on the others "restore => false".
   ## This is hack for not destroy the new files after restoring the initial files.
@@ -94,21 +63,15 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   ## for example if you have single Instance.
   config :restore, :validate => :boolean, :default => false
 
-
   # Set the directory where logstash will store the tmp files before sending it to S3
   # default to the current OS temporary directory in linux /tmp/logstash
   config :temporary_directory, :validate => :string, :default => File.join(Dir.tmpdir, "logstash")
 
-  # Specify a prefix to the uploaded filename, this can simulate directories on S3
-  config :prefix, :validate => :string, :default => ''
+  # Specify if outputing to csv ( make sure to specify the required fields in logstash-output-csv if you activate this option )
+  config :csv_format, :validate => :boolean, :default => false
 
   # Specify how many workers to use to upload the files to S3
   config :upload_workers_count, :validate => :number, :default => 1
-
-  # your dropbox app credentials
-  # Credentials can be specified:
-  # - As an ["key","secret"] array
-  config :credentials, :validate => :array
 
   # The token of the folder you need to access
   config :token, :validate => :string, :required => true
@@ -129,15 +92,10 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     @logger.info("Registering dropbox output")
 
-    if @credentials.length == 2
-      @access_key_id = @credentials[0]
-      @secret_access_key = @credentials[1]
-    else
-      @logger.error("Credentials missing, at least one of them.")
-    end
-
-    if @credentials && @token
+    if @token
       @dropbox = DropboxClient.new(@token)
+    else
+      @logger.error("Token missing, cannot create Dropbox Client to connect Dropbox.")
     end
 
   end
@@ -145,7 +103,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   public
   def write_on_bucket(file)
 
-    remote_filename = "#{@prefix}#{File.basename(file)}"
+    remote_filename = "#{@path}#{File.basename(file)}"
 
     @logger.debug("Dropbox: ready to write file in bucket", :remote_filename => remote_filename, :bucket => @bucket)
 
@@ -193,7 +151,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   #   # find and use the bucket
   #   bucket = @s3.buckets[@bucket]
 
-  #   remote_filename = "#{@prefix}#{File.basename(file)}"
+  #   remote_filename = "#{@path}#{File.basename(file)}"
 
   #   @logger.debug("Dropbox: ready to write file in bucket", :remote_filename => remote_filename, :bucket => @bucket)
 
@@ -232,9 +190,6 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   public
   def register
     require "dropbox_sdk"
-    # required if using ruby version < 2.0
-    # http://ruby.awsblog.com/post/Tx16QY1CI5GVBFT/Threading-with-the-AWS-SDK-for-Ruby
-    # AWS.eager_autoload!(AWS::S3)
 
     @csv_options = Hash[@csv_options.map{|(k, v)|[k.to_sym, v]}]
 
@@ -249,7 +204,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
       FileUtils.mkdir_p(@temporary_directory)
     end
 
-    # restore_from_crashes if @restore == true
+    restore_from_crashes if @restore == true
     reset_page_counter
     create_temporary_file
     configure_periodic_rotation if time_file != 0
@@ -261,16 +216,16 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   end
 
 
-  # public
-  # def restore_from_crashes
-  #   @logger.debug("Dropbox: is attempting to verify previous crashes...")
+  public
+  def restore_from_crashes
+    @logger.debug("Dropbox: is attempting to verify previous crashes...")
 
-  #   Dir[File.join(@temporary_directory, "*.#{TEMPFILE_EXTENSION}")].each do |file|
-  #     name_file = File.basename(file)
-  #     @logger.warn("Dropbox: have found temporary file the upload process crashed, uploading file to S3.", :filename => name_file)
-  #     move_file_to_bucket_async(file)
-  #   end
-  # end
+    Dir[File.join(@temporary_directory, "*.#{TEMPFILE_EXTENSION}")].each do |file|
+      name_file = File.basename(file)
+      @logger.warn("Dropbox: have found temporary file the upload process crashed, uploading file to Dropbox.", :filename => name_file)
+      move_file_to_bucket_async(file)
+    end
+  end
 
   public
   def move_file_to_bucket(file)
@@ -309,9 +264,15 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   public
   def receive(event)
     return unless output?(event)
-    csv_values = @fields.map {|name| get_value_to_csv(name, event)}
-    event["message"] = csv_values.to_csv(@csv_options)
-    @codec.encode(event["message"])
+
+    if @csv_format
+      csv_values = @fields.map {|name| get_value_to_csv(name, event)}
+      ev = csv_values.to_csv(@csv_options)
+    else
+      ev = event
+    end
+
+    @codec.encode(ev)
   end
 
   private
@@ -437,7 +398,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   def delete_on_bucket(filename)
     # bucket = @s3.buckets[@bucket]
 
-    remote_filename = "#{@prefix}#{File.basename(filename)}"
+    remote_filename = "#{@path}#{File.basename(filename)}"
 
     @logger.debug("Dropbox: delete file from folder", :remote_filename => remote_filename)
 
