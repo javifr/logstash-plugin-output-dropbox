@@ -109,9 +109,9 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
     File.open(file, 'r') do |fileIO|
       begin
         # fileIO.puts(@fields.to_csv(@csv_options)) if @csv_headers == true
-        headers = @fields.to_csv(@csv_options)
-        finalFile = "#{headers}\n"+fileIO
-        response = @dropbox.put_file(remote_filename, finalFile)
+        # headers = @fields.to_csv(@csv_options)
+        # finalFile = "#{headers}\n"+fileIO
+        response = @dropbox.put_file(remote_filename, fileIO)
       rescue Dropbox::Errors::Base => error
         @logger.error("Dropbox: Error", :error => error)
         raise LogStash::Error, "Dropbox Configuration Error, #{error}"
