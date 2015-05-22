@@ -71,6 +71,9 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   # Specify if outputing to csv ( make sure to specify the required fields in logstash-output-csv if you activate this option )
   config :csv_format, :validate => :boolean, :default => false
 
+  # As csv output file do not allow to output headers, that's the option
+  config :csv_headers, :validate => :boolean, :required => false, :default => true
+
   # Specify how many workers to use to upload the files to Dropbox
   config :upload_workers_count, :validate => :number, :default => 1
 
@@ -104,8 +107,9 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
     @logger.debug("Dropbox: ready to write file in folder", :remote_filename => remote_filename, :path => @path)
 
     File.open(file, 'r') do |fileIO|
-      begin
 
+      begin
+        fileIO.puts @fields.to_csv(@csv_options) if @csv_headers == true
         response = @dropbox.put_file(remote_filename, fileIO)
       rescue Dropbox::Errors::Base => error
         @logger.error("Dropbox: Error", :error => error)
@@ -177,6 +181,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
   public
   def move_file_to_bucket(file)
     if !File.zero?(file)
+
       write_on_bucket(file)
       @logger.debug("Dropbox: file was put on the upload thread", :filename => File.basename(file), :bucket => @bucket)
     end
