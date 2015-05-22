@@ -106,11 +106,12 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     @logger.debug("Dropbox: ready to write file in folder", :remote_filename => remote_filename, :path => @path)
 
-    File.open(file, 'r+') do |fileIO|
-
+    File.open(file, 'r') do |fileIO|
       begin
-        fileIO.puts(@fields.to_csv(@csv_options)) if @csv_headers == true
-        response = @dropbox.put_file(remote_filename, fileIO)
+        # fileIO.puts(@fields.to_csv(@csv_options)) if @csv_headers == true
+        headers = @fields.to_csv(@csv_options)
+        finalFile = "#{headers}\n"+fileIO
+        response = @dropbox.put_file(remote_filename, finalFile)
       rescue Dropbox::Errors::Base => error
         @logger.error("Dropbox: Error", :error => error)
         raise LogStash::Error, "Dropbox Configuration Error, #{error}"
@@ -118,9 +119,8 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
     end
 
     @logger.debug("Dropbox: has written remote file", :remote_filename => remote_filename)
+
   end
-
-
 
   # This method is used for create new empty temporary files for use. Flag is needed for indicate new subsection time_file.
   public
