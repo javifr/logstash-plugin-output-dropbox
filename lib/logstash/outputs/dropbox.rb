@@ -106,10 +106,10 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     @logger.debug("Dropbox: ready to write file in folder", :remote_filename => remote_filename, :path => @path)
 
-    File.open(file, 'r') do |fileIO|
+    File.open(file, 'r+') do |fileIO|
 
       begin
-        fileIO.puts @fields.to_csv(@csv_options) if @csv_headers == true
+        fileIO.puts(@fields.to_csv(@csv_options)) if @csv_headers == true
         response = @dropbox.put_file(remote_filename, fileIO)
       rescue Dropbox::Errors::Base => error
         @logger.error("Dropbox: Error", :error => error)
@@ -232,7 +232,6 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
     val = event[name]
     val.is_a?(Hash) ? LogStash::Json.dump(val) : val
   end
-
 
   public
   def rotate_events_log?
