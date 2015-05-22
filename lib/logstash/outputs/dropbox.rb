@@ -106,7 +106,9 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     @logger.debug("Dropbox: ready to write file in folder", :remote_filename => remote_filename, :path => @path)
 
-    File.open(file, 'r+') { |f| f.write(@fields.to_csv(@csv_options)) } if @csv_headers == true
+    # File.open(file, 'r+') { |f| f.write(@fields.to_csv(@csv_options)) } if @csv_headers == true
+
+    file_prepend(file, @fields.to_csv(@csv_options)+"\n" ) if @csv_headers == true
 
     File.open(file, 'r') do |fileIO|
       begin
@@ -119,6 +121,18 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     @logger.debug("Dropbox: has written remote file", :remote_filename => remote_filename)
 
+  end
+
+  def file_prepend(file, str)
+    new_contents = ""
+    File.open(file, 'r') do |fd|
+      contents = fd.read
+      new_contents = str << contents
+    end
+    # Overwrite file but now with prepended string on it
+    File.open(file, 'w') do |fd|
+      fd.write(new_contents)
+    end
   end
 
   # This method is used for create new empty temporary files for use. Flag is needed for indicate new subsection time_file.
