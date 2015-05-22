@@ -106,13 +106,10 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
     @logger.debug("Dropbox: ready to write file in folder", :remote_filename => remote_filename, :path => @path)
 
-    File.open(file, 'r+') { |f| f.write(@fields.to_csv(@csv_options)) }
+    File.open(file, 'r+') { |f| f.write(@fields.to_csv(@csv_options)) } if @csv_headers == true
 
     File.open(file, 'r') do |fileIO|
       begin
-        # fileIO.puts(@fields.to_csv(@csv_options)) if @csv_headers == true
-        # headers = @fields.to_csv(@csv_options)
-        # finalFile = "#{headers}\n"+fileIO
         response = @dropbox.put_file(remote_filename, fileIO)
       rescue Dropbox::Errors::Base => error
         @logger.error("Dropbox: Error", :error => error)
