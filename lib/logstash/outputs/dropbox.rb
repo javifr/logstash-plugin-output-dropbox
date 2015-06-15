@@ -248,7 +248,9 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
 
   public
   def rotate_events_log?
-    @tempfile.size > @size_file
+    @file_rotation_lock.synchronize do
+       @tempfile.size > @size_file
+    end
   end
 
   public
