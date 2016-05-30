@@ -219,11 +219,7 @@ class LogStash::Outputs::Dropbox < LogStash::Outputs::CSV
     current_time = Time.now
     filename = "ls.dropbox.#{Socket.gethostname}.#{current_time.strftime("%Y-%m-%dT%H.%M")}"
 
-    if @tags.size > 0
-      return "#{filename}.tag_#{@tags.join('.')}.part#{page_counter}.#{TEMPFILE_EXTENSION}"
-    else
-      return "#{filename}.part#{page_counter}.#{TEMPFILE_EXTENSION}"
-    end
+    return "#{filename}.part#{page_counter}.#{TEMPFILE_EXTENSION}"
   end
 
   public
